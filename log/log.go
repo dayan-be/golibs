@@ -58,7 +58,7 @@ func NewLogFile(options ...Option) *logFile {
 		timeFlag: false,
 		closed:   false,
 		msgQueue: make(chan string, 1000),
-		cnt:0,
+		cnt:1,
 	}
 
 	for _, option := range options {
@@ -189,20 +189,27 @@ func (f *logFile) doRotate() {
 }
 
 func (f *logFile) worker() {
-	for f.closed == false {
-		msg := <-f.msgQueue
-		f.curFile.WriteString(msg)
-		if f.sizeFlag == true {
-			curInfo, _ := os.Stat(f.filePath + f.fileName)
-			if curInfo.Size() >= f.sizeValue {
-				f.doRotate()
+	for {
+		select{
+		case msg := <- f.msgQueue: {
+			if f.closed == false {
+				f.curFile.WriteString(msg+"\n")
+				if f.sizeFlag == true {
+					curInfo, _ := os.Stat(f.filePath + f.fileName)
+					if curInfo.Size() >= f.sizeValue {
+						f.doRotate()
+					}
+				}
+				nowDate := time.Now().Format("2006-01-02")
+				if f.timeFlag == true &&
+					nowDate != f.todayDate {
+					f.doRotate()
+				}
 			}
+
 		}
-		nowDate := time.Now().Format("2006-01-02")
-		if f.timeFlag == true &&
-			nowDate != f.todayDate {
-			f.doRotate()
 		}
+
 	}
 }
 
