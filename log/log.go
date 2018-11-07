@@ -33,7 +33,8 @@ var (
 			return filepath.Base(os.Args[0]) + ".log"
 		}()),
 		LogFilePath(func()string{
-			path, _ :=  filepath.Abs(os.Args[0])
+			absPath, _ := filepath.Abs(os.Args[0])
+			path :=  filepath.Dir(absPath)
 			strings.TrimRight(path, string(filepath.Separator))
 			return path + string(filepath.Separator)+"log"
 		}()),
@@ -51,7 +52,6 @@ func init(){
 type Option func(file *logFile)
 
 func NewLogFile(options ...Option) *logFile {
-	var err error
 	logfile := &logFile{
 		fileName: "",
 		sizeFlag: false,
@@ -65,10 +65,7 @@ func NewLogFile(options ...Option) *logFile {
 		option(logfile)
 	}
 
-	err = os.MkdirAll(logfile.filePath,06666)
-	if err != nil{
-		fmt.Printf("\ncreate log file path failed %v\n",err)
-	}
+	os.MkdirAll(logfile.filePath,os.ModePerm)
 
 	logfile.todayDate = time.Now().Format("2006-01-02")
 	//
