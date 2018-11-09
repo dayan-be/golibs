@@ -1,0 +1,13 @@
+syntax="proto3";
+package byterpc;
+
+message Request {
+    string service_method = 1;
+    fixed64 seq = 2;
+}
+
+message Response {
+    string service_method = 1;
+    fixed64 seq = 2;
+    string error = 3;
+}
