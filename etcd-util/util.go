@@ -43,45 +43,35 @@ func initEtcdClient() error {
 	}
 }
 
-// Get using DefaultClient
-func Get(key string, defaultValue string, opts ...clientv3.OpOption) (string, error) {
-	return GetWithOptions(key, defaultValue, opts)
-}
-
 // GetWithOptions using DefaultClient
-func GetWithOptions(key string, defaultValue string, opts *etcd.GetOptions) (string, error) {
+func Get(key string, defaultValue string, opts ...clientv3.OpOption) (string, error) {
 	if err := initEtcdClient(); err != nil {
 		return defaultValue, err
 	}
-	return defaultEtcdClient.GetWithCacheAndOpts(key, defaultValue, opts)
-}
-
-// Set using DefaultClient
-func Set(key string, value string, opts ...clientv3.OpOption) (string, error) {
-	return SetWithOptions(key, value, nil)
+	return defaultEtcdClient.GetWithCache(key, defaultValue, opts...)
 }
 
 // SetWithOptions using DefaultClient
-func SetWithOptions(key string, value string, opts *etcd.SetOptions) (string, error) {
+func Put(key string, value string, opts ...clientv3.OpOption) (string, error) {
 	if err := initEtcdClient(); err != nil {
 		return "", err
 	}
 
-	resp, err := defaultEtcdClient.Set(context.TODO(), key, value, opts)
+	resp, err := defaultEtcdClient.Put(context.TODO(), key, value, opts...)
 	if err != nil || resp == nil {
 		logrus.Error("Can't set key %s, %v", key, err)
 		return "", err
 	}
 
 	cache.Set(key, value)
-	return resp.Node.Value, nil
+	var ret string
+	if resp.PrevKv != nil {
+		ret = string(resp.PrevKv.Value)
+	}
+	return ret, nil
 }
 
-func (c *Client) GetWithCache(key string, defaultValue string) (string, error) {
-	return c.GetWithCacheAndOpts(key, defaultValue, nil)
-}
-
-func (c *Client) GetWithCacheAndOpts(key string, defaultValue string, opts ...clientv3.OpOption) (string, error) {
+func (c *Client) GetWithCache(key string, defaultValue string, opts ...clientv3.OpOption) (string, error) {
 	if len(key) == 0 {
 		return defaultValue, fmt.Errorf("Can't get from empty key")
 	}
@@ -102,8 +92,10 @@ func (c *Client) GetWithCacheAndOpts(key string, defaultValue string, opts ...cl
 	value = defaultValue
 	if err != nil {
 		logrus.Error("Get from etcd error", err)
-	} else if resp != nil && resp.Node != nil && len(resp.Node.Value) != 0 {
-		value = resp.Node.Value
+	} else if resp != nil  {
+		if len(resp.Kvs) > 0 {
+			value = string(resp.Kvs[0].Value)
+		}
 	}
 	cache.Set(key, value)
 	return value, err
